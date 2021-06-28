@@ -3,7 +3,8 @@ install
 data
 go
 go.hard
-run
+run*
+test/output/*
 app.log
 *.pyc
 sosd.*.db

@@ -291,14 +291,31 @@ using RegionData = std::pair<std::string, Apollo::Region *>;
 static std::map<size_t, std::pair<Apollo::Region *, Apollo::RegionContext *>>
     tuned_contexts;
 static std::map<variableSet, RegionData> tuning_regions;
+
 extern "C" void kokkosp_finalize_library() {
   printf("Finalizing Apollo Tuning adapter\n");
   for (auto kv : tuning_regions) {
     RegionData data = kv.second;
     auto file_name = data.first;
     auto *region = data.second;
+
+    // 1. grab the model for this region: region->model;
+    // 2. call model->exportAsCode("C");
+    // 3. parse the exported annotation about what the model is expecting as input
+    // 4. grab the kokkos contextValues that are associated with this region
+    // 5. validate they are the same number & convertable to type for model input
+    // 6. generate (the same type of) code that fetches these values
+    // 7. convert and place kokkos values in the generic input variables apollo emitted
+    // 8. export this completed code alongside .json dumps, etc.
+
+    // TODO: Ponder how we want kokkos connector to automatically find/use
+    //       these per-region modules instead of activating Apollo.
+    //       Maybe have that alternative init/run/finalize path exist as
+    //       a different connector in a different tool altogether.
+
   }
 }
+
 Kokkos::Tools::Experimental::ToolProgrammingInterface helper_functions;
 void invoke_fence(uint32_t devID) {
   if ((helper_functions.fence != nullptr) && (num_unconverged_regions > 0)) {
@@ -511,6 +528,9 @@ extern "C" void kokkosp_end_context(size_t contextId) {
   tuned_contexts.erase(contextId);
   static int encounter;
   if ((++encounter % flush_interval) == 0) {
+    // TODO[cdw]: Ideally this would happen at some major
+    //            application step boundary, not at the end
+    //            of a parallel region?
     apollo->flushAllRegionMeasurements(0);
     num_unconverged_regions = 0; // TODO: better
   }

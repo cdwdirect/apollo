@@ -45,7 +45,7 @@ set(CMAKE_CXX_STANDARD 14)
 #
 # Options
 #
-option(ENABLE_MPI "Require and enabled MPI for collective training?" ON)
+option(ENABLE_MPI "Require and enabled MPI for collective training?" OFF)
 #
 set(APOLLO_ENABLE_TESTS    OFF  CACHE STRING "")
 set(APOLLO_RPATH_OVERRIDES ON  CACHE STRING "")
