@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <vector>
+
 #include "apollo/PolicyModel.h"
 #include "apollo/TimingModel.h"
 

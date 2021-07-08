@@ -48,6 +48,8 @@ Optimal::Optimal(std::string file) : PolicyModel(0, "Optimal", false) {
     infile.close();
 }
 
+
+
 int
 Optimal::getIndex(std::vector<float> &features)
 {

@@ -184,3 +184,30 @@ void DecisionTree::store(const std::string &filename)
 {
     dtree->save( filename );
 }
+
+
+
+
+std::string
+DecisionTree::generateSource(const std::string &language)
+{
+    // NOTE[cdw]: For now, we only support C++ code generation.
+    if (not ((language == "C++") || \
+             (language == "CPP") || \
+             (language == "Cpp") || \
+             (language == "cpp")))
+    {
+        std::cerr << "== APOLLO: DecisionTree::generateSource(" \
+                  << language << ") is not supported.\n" \
+                  << "== APOLLO: Returning empty string.\n";
+        return "";
+    }
+
+    std::stringstream code;
+
+    // OK, here we go...
+
+
+    return code.str();
+
+}

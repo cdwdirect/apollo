@@ -23,6 +23,8 @@ class DecisionTree : public PolicyModel {
         void store(const std::string &filename);
         void load(const std::string &filename);
 
+        std::string generateSource(const std::string &language);
+
     private:
         //Ptr<DTrees> dtree;
         Ptr<RTrees> dtree;

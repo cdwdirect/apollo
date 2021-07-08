@@ -15,6 +15,8 @@ class RoundRobin : public PolicyModel {
         int  getIndex(std::vector<float> &features);
         void store(const std::string &filename) {};
 
+
+
     private:
         std::map< std::vector<float>, int > policies;
         int last_policy;

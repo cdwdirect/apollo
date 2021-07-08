@@ -12,6 +12,9 @@ class Sequential : public PolicyModel {
 
         int  getIndex(std::vector<float> &features);
 
+
+
+
     private:
 
 }; //end: Sequential (class)

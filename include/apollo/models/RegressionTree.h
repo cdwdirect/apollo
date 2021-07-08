@@ -20,6 +20,7 @@ class RegressionTree : public TimingModel {
         double getTimePrediction(std::vector<float> &features);
         void store(const std::string &filename);
 
+
     private:
         // Ptr<DTrees> dtree;
         Ptr<RTrees> dtree;
