@@ -300,7 +300,7 @@ extern "C" void kokkosp_finalize_library() {
     auto *region = data.second;
 
     // 1. grab the model for this region: region->model;
-    // 2. call model->exportAsCode("C");
+    // 2. call model->exportAsCode("C++");
     // 3. parse the exported annotation about what the model is expecting as input
     // 4. grab the kokkos contextValues that are associated with this region
     // 5. validate they are the same number & convertable to type for model input

@@ -23,11 +23,19 @@ class DecisionTree : public PolicyModel {
         void store(const std::string &filename);
         void load(const std::string &filename);
 
-        std::string generateSource(const std::string &language);
+        std::string generateSource(const std::string &language, const std::string &regionName);
 
     private:
-        //Ptr<DTrees> dtree;
         Ptr<RTrees> dtree;
+
+        // Internals for the generateSource() function's recursive dive:
+        void generateCPPSourceHeader(std::stringstream& code, const std::string &regionName);
+        void generateCPPSourceFooter(std::stringstream& code);
+        void generateCPPSourceForTree(std::stringstream& code, int rootidx) const;
+        void generateCPPSourceForNode(std::stringstream& code, int nodeidx, int depth) const;
+        void generateCPPSourceForSplit(std::stringstream& code, int splitidx) const;
+
+        //Ptr<DTrees> dtree;
         //Ptr<SVM> dtree;
         //Ptr<NormalBayesClassifier> dtree;
         //Ptr<KNearest> dtree;

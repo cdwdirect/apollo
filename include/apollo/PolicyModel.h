@@ -8,7 +8,7 @@
 class PolicyModel {
     protected:
         std::string
-        generateDefaultSource(const std::string &language) {
+        generateDefaultSource(const std::string &language, const std::string &regionName) {
             // NOTE[cdw]: Eventually we may wish to add any boilerplate
             //            macros here that get emplaced during source
             //            gen of different kinds of models. These are
@@ -33,8 +33,8 @@ class PolicyModel {
             store(const std::string &filename) = 0;
 
         virtual std::string
-            generateSource(const std::string &language) {
-                return generateDefaultSource(language);
+            generateSource(const std::string &language, const std::string &regionName) {
+                return generateDefaultSource(language, regionName);
             }
 
         int              policy_count;

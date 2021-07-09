@@ -44,6 +44,7 @@
 
 #include "apollo/models/DecisionTree.h"
 #include <opencv2/core/types.hpp>
+#include <opencv2/ml.hpp>
 
 #define modelName "decisiontree"
 #define modelFile __FILE__
@@ -186,13 +187,109 @@ void DecisionTree::store(const std::string &filename)
 }
 
 
+void DecisionTree::generateCPPSourceForSplit(std::stringstream& code, int splitidx ) const
+{
+    const DTrees::Split& split = dtree->getSplits()[splitidx];
+
+    code << "(";
+
+    int vi = split.varIdx;
+    code << "var" << vi;
+    code << "quality" << split.quality;
+
+    code << (!split.inversed ? " < " : " > ") << split.c;
+
+    code << ")";
+}
+
+void DecisionTree::generateCPPSourceForNode(std::stringstream& code, int nidx, int depth ) const
+{
+    const Node& node = dtree->nodes[nidx];
+    const std::vector<Dtrees::Split>& splits = dtree->splits;
+
+    std::string indent;
+    indent.append((depth * 4), ' ');
+
+    if( node.split >= 0 )
+    {
+        code << indent << "if (";
+
+        for( int splitidx = node.split; splitidx >= 0; splitidx = splits[splitidx].next ) {
+
+            generateCPPSourceForSplit(code, splitidx);
+
+            if (splits[splitidx].next >= 0) {
+                code << " || \n" << indent << "     ";
+            }
+
+        }
+
+        code << indent << ")";
+    }
+
+    code << indent << "{\n";
+    code << indent << "    __NODE" << nidx << "VAL = " << node.value << ";\n";
+    code << indent << "    return __NODE" << nidx << "VAL;\n";
+    code << indent << "} ";
+
+
+}
+
+void DecisionTree::generateCPPSourceForTree( FileStorage& fs, int root ) const
+{
+    fs << "nodes" << "[";
+
+    int nidx = root, pidx = 0, depth = 0;
+    const Node *node = 0;
+
+    // traverse the tree and save all the nodes in depth-first order
+    for(;;)
+    {
+        for(;;)
+        {
+            writeNode( fs, nidx, depth );
+            node = &nodes[nidx];
+            if( node->left < 0 )
+                break;
+            nidx = node->left;
+            depth++;
+        }
+
+        for( pidx = node->parent; pidx >= 0 && nodes[pidx].right == nidx;
+             nidx = pidx, pidx = nodes[pidx].parent )
+            depth--;
+
+        if( pidx < 0 )
+            break;
+
+        nidx = nodes[pidx].right;
+    }
+
+    fs << "]";
+}
+
+
+void
+DecisionTree::generateCPPSourceHeader(std::stringstream& code, const std::string& regionName)
+{
+    return;
+}
+
+
+void
+DecisionTree::generateCPPSourceFooter(std::stringstream& code)
+{
+    return;
+}
+
 
 
 std::string
-DecisionTree::generateSource(const std::string &language)
+DecisionTree::generateSource(const std::string &language, const std::string &regionName)
 {
     // NOTE[cdw]: For now, we only support C++ code generation.
-    if (not ((language == "C++") || \
+    if (not ((language == "c++") || \
+             (language == "C++") || \
              (language == "CPP") || \
              (language == "Cpp") || \
              (language == "cpp")))
@@ -204,9 +301,21 @@ DecisionTree::generateSource(const std::string &language)
     }
 
     std::stringstream code;
+    std::vector<int>&  roots = dtree->getRoots();
+    std::vector<Rtrees::Node> nodes = dtree->getNodes();
+
 
     // OK, here we go...
 
+    std::cout << "roots.size() == " << roots.size() << "\n";
+    for (auto rootIdx : roots) {
+        std::cout << "roots[" << rootIdx << "] == " \
+                  << roots[i] << "\n";
+    }
+
+    generateCPPSourceHeader(code, regionName);
+    generateCPPSourceForTree(code, roots[0]);
+    generateCPPSourceFooter(code);
 
     return code.str();
 
