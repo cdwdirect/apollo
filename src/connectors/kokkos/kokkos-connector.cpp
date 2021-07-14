@@ -1,3 +1,35 @@
+/*
+ //@HEADER
+ // ************************************************************************
+ //
+ //                        Kokkos v. 3.0
+ //       Copyright (2020) National Technology & Engineering
+ //               Solutions of Sandia, LLC (NTESS).
+ //
+ // Under the terms of Contract DE-NA0003525 with NTESS,
+ // the U.S. Government retains certain rights in this software.
+ //
+ // Permission is hereby granted, free of charge, to any person obtaining
+ // a copy of this software and associated documentation files (the "Software"),
+ // to deal in the Software without restriction, including without limitation
+ // the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ // and/or sell copies of the Software, and to permit persons to whom the
+ // Software is furnished to do so, subject to the following conditions:
+ //
+ // The above copyright notice and this permission notice shall be included in
+ // all copies or substantial portions of the Software.
+ //
+ // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ // AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ // DEALINGS IN THE SOFTWARE.
+ // Questions? Contact Christian R. Trott (crtrott@sandia.gov)
+ // @HEADER
+*/
+
 #include <algorithm>
 #include <apollo/Apollo.h>
 #include <apollo/ModelFactory.h>
@@ -276,6 +308,7 @@ extern "C" void kokkosp_init_library(const int loadSeq,
   for (int x = 0; x < max_choices; ++x) {
     choices[x] = x;
   }
+<<<<<<< HEAD
   setenv("APOLLO_STORE_MODELS",        "1",          1);
   setenv("APOLLO_RETRAIN_ENABLE",      "0",          1);
   setenv("APOLLO_REGION_MODEL",        "1",          1);
@@ -283,6 +316,15 @@ extern "C" void kokkosp_init_library(const int loadSeq,
   setenv("APOLLO_INIT_MODEL",          "RoundRobin", 1);
   setenv("APOLLO_COLLECTIVE_TRAINING", "0",          1);
   setenv("APOLLO_TRACE_BEST_POLICIES", "1",          1);
+=======
+  putenv("APOLLO_STORE_MODELS=1");
+  putenv("APOLLO_RETRAIN_ENABLE=0");
+  putenv("APOLLO_REGION_MODEL=1");
+  putenv("APOLLO_LOCAL_TRAINING=1");
+  putenv("APOLLO_INIT_MODEL=RoundRobin");
+  putenv("APOLLO_COLLECTIVE_TRAINING=0");
+  putenv("APOLLO_TRACE_BEST_POLICIES=1");
+>>>>>>> develop
   apollo = Apollo::instance();
 }
 
@@ -291,13 +333,17 @@ using RegionData = std::pair<std::string, Apollo::Region *>;
 static std::map<size_t, std::pair<Apollo::Region *, Apollo::RegionContext *>>
     tuned_contexts;
 static std::map<variableSet, RegionData> tuning_regions;
+<<<<<<< HEAD
 
+=======
+>>>>>>> develop
 extern "C" void kokkosp_finalize_library() {
   printf("Finalizing Apollo Tuning adapter\n");
   for (auto kv : tuning_regions) {
     RegionData data = kv.second;
     auto file_name = data.first;
     auto *region = data.second;
+<<<<<<< HEAD
 
     // 1. grab the model for this region: region->model;
     // 2. call model->exportAsCode("C++");
@@ -316,6 +362,10 @@ extern "C" void kokkosp_finalize_library() {
   }
 }
 
+=======
+  }
+}
+>>>>>>> develop
 Kokkos::Tools::Experimental::ToolProgrammingInterface helper_functions;
 void invoke_fence(uint32_t devID) {
   if ((helper_functions.fence != nullptr) && (num_unconverged_regions > 0)) {
@@ -528,9 +578,12 @@ extern "C" void kokkosp_end_context(size_t contextId) {
   tuned_contexts.erase(contextId);
   static int encounter;
   if ((++encounter % flush_interval) == 0) {
+<<<<<<< HEAD
     // TODO[cdw]: Ideally this would happen at some major
     //            application step boundary, not at the end
     //            of a parallel region?
+=======
+>>>>>>> develop
     apollo->flushAllRegionMeasurements(0);
     num_unconverged_regions = 0; // TODO: better
   }
