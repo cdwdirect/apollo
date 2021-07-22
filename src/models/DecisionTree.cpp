@@ -161,7 +161,7 @@ void DecisionTree::store(const std::string &filename)
 
 void DecisionTree::generateCPPSourceForSplit(std::stringstream& code, int splitidx ) const
 {
-    const DTrees::Split& split = dtree->getSplits()[splitidx];
+    const cv::ml::DTrees::Split& split = dtree->getSplits()[splitidx];
 
     code << "(";
 
@@ -176,8 +176,8 @@ void DecisionTree::generateCPPSourceForSplit(std::stringstream& code, int spliti
 
 void DecisionTree::generateCPPSourceForNode(std::stringstream& code, int nidx, int depth ) const
 {
-    const Node& node = dtree->nodes[nidx];
-    const std::vector<Dtrees::Split>& splits = dtree->splits;
+    const cv::ml::DTrees::Node& node = dtree->getNodes()[nidx];
+    const std::vector<cv::ml::DTrees::Split>& splits = dtree->getSplits();
 
     std::string indent;
     indent.append((depth * 4), ' ');
@@ -207,27 +207,29 @@ void DecisionTree::generateCPPSourceForNode(std::stringstream& code, int nidx, i
 
 }
 
-void DecisionTree::generateCPPSourceForTree( FileStorage& fs, int root ) const
+void DecisionTree::generateCPPSourceForTree(std::stringstream& code, int root ) const
 {
-    fs << "nodes" << "[";
+    code << "nodes" << "[";
 
     int nidx = root, pidx = 0, depth = 0;
-    const Node *node = 0;
+
+    const std::vector<cv::ml::DTrees::Node>& nodes = dtree->getNodes();
+    const cv::ml::DTrees::Node &node{nodes[nidx]};
 
     // traverse the tree and save all the nodes in depth-first order
     for(;;)
     {
         for(;;)
         {
-            writeNode( fs, nidx, depth );
-            node = &nodes[nidx];
-            if( node->left < 0 )
+            generateCPPSourceForNode( code, nidx, depth );
+            const cv::ml::DTrees::Node &node{nodes[nidx]};
+            if( node.left < 0 )
                 break;
-            nidx = node->left;
+            nidx = node.left;
             depth++;
         }
 
-        for( pidx = node->parent; pidx >= 0 && nodes[pidx].right == nidx;
+        for( pidx = node.parent; pidx >= 0 && nodes[pidx].right == nidx;
              nidx = pidx, pidx = nodes[pidx].parent )
             depth--;
 
@@ -237,7 +239,7 @@ void DecisionTree::generateCPPSourceForTree( FileStorage& fs, int root ) const
         nidx = nodes[pidx].right;
     }
 
-    fs << "]";
+    code << "]";
 }
 
 
@@ -273,21 +275,24 @@ DecisionTree::generateSource(const std::string &language, const std::string &reg
     }
 
     std::stringstream code;
-    std::vector<int>&  roots = dtree->getRoots();
-    std::vector<Rtrees::Node> nodes = dtree->getNodes();
+    const std::vector<int>&  roots = dtree->getRoots();
+    const std::vector<cv::ml::DTrees::Node>& nodes = dtree->getNodes();
 
 
     // OK, here we go...
-
     std::cout << "roots.size() == " << roots.size() << "\n";
     for (auto rootIdx : roots) {
         std::cout << "roots[" << rootIdx << "] == " \
-                  << roots[i] << "\n";
+                  << roots[rootIdx] << "\n";
     }
 
     generateCPPSourceHeader(code, regionName);
     generateCPPSourceForTree(code, roots[0]);
     generateCPPSourceFooter(code);
+
+    std::cout << "---------- GENERATED CODE ----------\n" \
+              << code.str() << "\n" \
+              << "------------------------------END---\n";
 
     return code.str();
 

@@ -308,7 +308,6 @@ extern "C" void kokkosp_init_library(const int loadSeq,
   for (int x = 0; x < max_choices; ++x) {
     choices[x] = x;
   }
-<<<<<<< HEAD
   setenv("APOLLO_STORE_MODELS",        "1",          1);
   setenv("APOLLO_RETRAIN_ENABLE",      "0",          1);
   setenv("APOLLO_REGION_MODEL",        "1",          1);
@@ -316,43 +315,37 @@ extern "C" void kokkosp_init_library(const int loadSeq,
   setenv("APOLLO_INIT_MODEL",          "RoundRobin", 1);
   setenv("APOLLO_COLLECTIVE_TRAINING", "0",          1);
   setenv("APOLLO_TRACE_BEST_POLICIES", "1",          1);
-=======
-  putenv("APOLLO_STORE_MODELS=1");
-  putenv("APOLLO_RETRAIN_ENABLE=0");
-  putenv("APOLLO_REGION_MODEL=1");
-  putenv("APOLLO_LOCAL_TRAINING=1");
-  putenv("APOLLO_INIT_MODEL=RoundRobin");
-  putenv("APOLLO_COLLECTIVE_TRAINING=0");
-  putenv("APOLLO_TRACE_BEST_POLICIES=1");
->>>>>>> develop
   apollo = Apollo::instance();
 }
+
 
 using RegionData = std::pair<std::string, Apollo::Region *>;
 
 static std::map<size_t, std::pair<Apollo::Region *, Apollo::RegionContext *>>
     tuned_contexts;
 static std::map<variableSet, RegionData> tuning_regions;
-<<<<<<< HEAD
 
-=======
->>>>>>> develop
+
 extern "C" void kokkosp_finalize_library() {
   printf("Finalizing Apollo Tuning adapter\n");
   for (auto kv : tuning_regions) {
     RegionData data = kv.second;
     auto file_name = data.first;
     auto *region = data.second;
-<<<<<<< HEAD
 
-    // 1. grab the model for this region: region->model;
-    // 2. call model->exportAsCode("C++");
-    // 3. parse the exported annotation about what the model is expecting as input
-    // 4. grab the kokkos contextValues that are associated with this region
-    // 5. validate they are the same number & convertable to type for model input
-    // 6. generate (the same type of) code that fetches these values
-    // 7. convert and place kokkos values in the generic input variables apollo emitted
-    // 8. export this completed code alongside .json dumps, etc.
+    // X 1. grab the model for this region: region->model;
+    // X 2. call model->exportAsCode("C++");
+    //   3. parse the exported annotation about what the model is expecting as input
+    //   4. grab the kokkos contextValues that are associated with this region
+    //   5. validate they are the same number & convertable to type for model input
+    //   6. generate (the same type of) code that fetches these values
+    //   7. convert and place kokkos values in the generic input variables apollo emitted
+    //   8. export this completed code alongside .json dumps, etc.
+
+    std::string code = region->model->generateSource("C++", file_name);
+
+    std::cout << "Code length: " << code.size() << " bytes.\n";
+
 
     // TODO: Ponder how we want kokkos connector to automatically find/use
     //       these per-region modules instead of activating Apollo.
@@ -362,10 +355,8 @@ extern "C" void kokkosp_finalize_library() {
   }
 }
 
-=======
-  }
-}
->>>>>>> develop
+
+
 Kokkos::Tools::Experimental::ToolProgrammingInterface helper_functions;
 void invoke_fence(uint32_t devID) {
   if ((helper_functions.fence != nullptr) && (num_unconverged_regions > 0)) {
@@ -578,12 +569,9 @@ extern "C" void kokkosp_end_context(size_t contextId) {
   tuned_contexts.erase(contextId);
   static int encounter;
   if ((++encounter % flush_interval) == 0) {
-<<<<<<< HEAD
     // TODO[cdw]: Ideally this would happen at some major
     //            application step boundary, not at the end
     //            of a parallel region?
-=======
->>>>>>> develop
     apollo->flushAllRegionMeasurements(0);
     num_unconverged_regions = 0; // TODO: better
   }
