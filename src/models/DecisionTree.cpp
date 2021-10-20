@@ -160,12 +160,12 @@ void DecisionTree::store(const std::string &filename)
 
 
 void
-DecisionTree::generateCPPSourceRandomForest(std::srtingstream& code, int numPolicies)
+DecisionTree::generateCPPSourceRandomForest(std::stringstream& code, int numPolicies)
 {
     //NOTE[cdw]: 'dtree' is a private class member, see .h file.
     const std::vector<int>& roots = dtree->getRoots();
     const std::vector<cv::ml::DTrees::Node>& nodes = dtree->getNodes();
-    const std::vector<cv::ml::Dtrees::Split>& splits = dtree->getSplits();
+    const std::vector<cv::ml::DTrees::Split>& splits = dtree->getSplits();
 
     code << "static const std::vector<int> rootNodes { ";
     for (auto root : roots) {
