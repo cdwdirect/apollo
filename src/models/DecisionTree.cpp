@@ -159,88 +159,158 @@ void DecisionTree::store(const std::string &filename)
 }
 
 
-void DecisionTree::generateCPPSourceForSplit(std::stringstream& code, int splitidx ) const
+void
+DecisionTree::generateCPPSourceRandomForest(std::srtingstream& code, int numPolicies)
 {
-    const cv::ml::DTrees::Split& split = dtree->getSplits()[splitidx];
+    //NOTE[cdw]: 'dtree' is a private class member, see .h file.
+    const std::vector<int>& roots = dtree->getRoots();
+    const std::vector<cv::ml::DTrees::Node>& nodes = dtree->getNodes();
+    const std::vector<cv::ml::Dtrees::Split>& splits = dtree->getSplits();
 
-    code << "(";
+    code << "static const std::vector<int> rootNodes { ";
+    for (auto root : roots) {
+        code << root << ", ";
+    }
+    code << " };\n\n";
 
-    int vi = split.varIdx;
-    code << "var" << vi;
-    code << "quality" << split.quality;
+    code << "static const std::vector<int> nodeSplitIndex { ";
+    for (auto node : nodes) {
+        code << node.split << ", ";
+    }
+    code << " };\n\n";
 
-    code << (!split.inversed ? " < " : " > ") << split.c;
+    code << "static const std::vector<int> nodeLeft { ";
+    for (auto node : nodes) {
+        code << node.left << ", ";
+    }
+    code << " };\n\n";
 
-    code << ")";
-}
+    code << "static const std::vector<int> nodeRight { ";
+    for (auto node : nodes) {
+        code << node.right << ", ";
+    }
+    code << " };\n\n";
 
-void DecisionTree::generateCPPSourceForNode(std::stringstream& code, int nidx, int depth ) const
-{
-    const cv::ml::DTrees::Node& node = dtree->getNodes()[nidx];
-    const std::vector<cv::ml::DTrees::Split>& splits = dtree->getSplits();
+    code << "static const std::vector<int> nodeSuggestedPolicy { ";
+    for (auto node : nodes) {
+        code << node.classIdx << ", ";
+    }
+    code << " };\n\n";
 
-    std::string indent;
-    indent.append((depth * 4), ' ');
+    code << "static const std::vector<int> splitOnVariableIdx { ";
+    for (auto split : splits) {
+        code << split.varIdx << ", ";
+    }
+    code << " };\n\n";
 
-    if( node.split >= 0 )
-    {
-        code << indent << "if (";
+    code << "static const std::vector<float> splitAtThreshold { ";
+    for (auto split : splits) {
+        code << split.c << ", ";
+    }
+    code << " };\n\n";
 
-        for( int splitidx = node.split; splitidx >= 0; splitidx = splits[splitidx].next ) {
+    code << "static const std::vector<bool> splitDirectionReversed { ";
+    for (auto split : splits) {
+        code << (int) split.inversed << ", ";
+    }
+    code << " };\n\n";
 
-            generateCPPSourceForSplit(code, splitidx);
+    code << "static std::vector<int> votes(" << numPolicies << ");\n";
+    code << \
+R"(
+    // Clear out votes from previous prediction:
+    std::fill(votes.begin(), votes.end(), 0);
 
-            if (splits[splitidx].next >= 0) {
-                code << " || \n" << indent << "     ";
+    // These are filled-in/used in the loops below as we walk the
+    // trees of the forest and a
+    int node_split_idx;
+    int node_child_right;
+    int node_child_left;
+    int node_recommended_pol;
+    int   split_on_var_idx;
+    float split_at_threshold;
+    bool  split_is_gt;
+
+    for (int ridx: rootNodes) {
+        int nidx = ridx;
+        int prev = nidx;
+
+        for (;;)
+        {
+            //NOTE[cdw]: Terminal leaves in the tree encoding have a
+            //           sentinel value where node_split_idx < 0,
+            //           which is why we "memoize" 'prev' for use when
+            //           extracting policy recommendations, after
+            //           arriving at the terminating sentinal node.
+
+            prev = nidx;
+
+            node_split_idx   = nodeSplitIndex[nidx];
+            node_child_right = nodeRight[nidx];
+            node_child_left  = nodeLeft[nidx];
+
+            if( node_split_idx < 0 ) {
+                // This is a leaf node, it refers to no deeper branches.
+                break;
             }
 
+            split_on_var_idx   = splitOnVariableIdx[node_split_idx];
+            split_at_threshold = splitAtThreshold[node_split_idx];
+            split_is_gt        = splitDirectionReversed[node_split_idx];
+
+            float val = immediateFeatureValues[split_on_var_idx];
+
+            //NOTE[cdw]: In OpenCV...
+            //               if( vtype[va] == VAR_ORDERED ) ...
+            //           the below line is the only logic, it does not
+            //           check 'split_is_gt' ... that only comes up when
+            //               float val = psample[ci*sstep];
+            //               if (val == MISSED_VAL ) {
+            //                  nidx = (split_is_gt ? node_child_right : node_child_left);
+            //                  continue;
+            //               }
+            //               val = missingSubstPtr[vi];
+            //               ...
+            //
+            //    TODO[cdw]:
+            //           SO, I think we're missing a step here, where
+            //           somehow we get to a point in the tree and
+            //           nothing is true, and we've not yet made a
+            //           recommendation, and we need to bump right instead
+            //           of left, or something like that. Not sure.
+            //
+            //
+            nidx = (val <= split_at_threshold ? node_child_left : node_child_right);
         }
 
-        code << indent << ")";
-    }
+        node_suggested_pol = nodeSuggestPolicy[prev];
+        votes[node_suggested_pol]++;
 
-    code << indent << "{\n";
-    code << indent << "    __NODE" << nidx << "VAL = " << node.value << ";\n";
-    code << indent << "    return __NODE" << nidx << "VAL;\n";
-    code << indent << "} ";
+        } //end: parsing this tree
+    } //end: parsing all trees in forest
 
-
-}
-
-void DecisionTree::generateCPPSourceForTree(std::stringstream& code, int root ) const
-{
-    code << "nodes" << "[";
-
-    int nidx = root, pidx = 0, depth = 0;
-
-    const std::vector<cv::ml::DTrees::Node>& nodes = dtree->getNodes();
-    const cv::ml::DTrees::Node &node{nodes[nidx]};
-
-    // traverse the tree and save all the nodes in depth-first order
-    for(;;)
+    // Analyze the votes and return the winner!
+    int best_idx = node_suggested_pol;
+    if( roots.size() > 1 )
     {
-        for(;;)
-        {
-            generateCPPSourceForNode( code, nidx, depth );
-            const cv::ml::DTrees::Node &node{nodes[nidx]};
-            if( node.left < 0 )
-                break;
-            nidx = node.left;
-            depth++;
+        best_idx = 0;
+        for(int i = 1; i < )" << numPolicies << R"(; i++ ) {
+            if( votes[best_idx] < votes[i] )
+            best_idx = i;
         }
-
-        for( pidx = node.parent; pidx >= 0 && nodes[pidx].right == nidx;
-             nidx = pidx, pidx = nodes[pidx].parent )
-            depth--;
-
-        if( pidx < 0 )
-            break;
-
-        nidx = nodes[pidx].right;
     }
 
-    code << "]";
+
+
+)";
+
+
+
+    return;
 }
+
+
+
 
 
 void
@@ -287,7 +357,7 @@ DecisionTree::generateSource(const std::string &language, const std::string &reg
     }
 
     generateCPPSourceHeader(code, regionName);
-    generateCPPSourceForTree(code, roots[0]);
+    generateCPPSourceRandomForest(code, policy_count);
     generateCPPSourceFooter(code);
 
     std::cout << "---------- GENERATED CODE ----------\n" \
