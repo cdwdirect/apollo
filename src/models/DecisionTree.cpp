@@ -86,13 +86,13 @@ DecisionTree::DecisionTree(int num_policies, std::vector< std::vector<float> > &
     dtree->setTruncatePrunedTree(false);
     dtree->setPriors(Mat());
 
-    Mat fmat;
+    //Mat fmat;
     for(auto &i : features) {
         Mat tmp(1, i.size(), CV_32F, &i[0]);
         fmat.push_back(tmp);
     }
 
-    Mat rmat;
+    //Mat rmat;
     //rmat = Mat::zeros( fmat.rows, num_policies, CV_32F );
     //for( int i = 0; i < responses.size(); i++ ) {
     //    int j = responses[i];
@@ -166,56 +166,57 @@ DecisionTree::generateCPPSourceRandomForest(std::stringstream& code, int numPoli
     const std::vector<int>& roots = dtree->getRoots();
     const std::vector<cv::ml::DTrees::Node>& nodes = dtree->getNodes();
     const std::vector<cv::ml::DTrees::Split>& splits = dtree->getSplits();
+    const std::vector<int>& labels = rmat.data.getClassLabels();
 
     code << "static const std::vector<int> rootNodes { ";
     for (auto root : roots) {
         code << root << ", ";
     }
-    code << " };\n\n";
+    code << " };\n";
 
     code << "static const std::vector<int> nodeSplitIndex { ";
     for (auto node : nodes) {
         code << node.split << ", ";
     }
-    code << " };\n\n";
+    code << " };\n";
 
     code << "static const std::vector<int> nodeLeft { ";
     for (auto node : nodes) {
         code << node.left << ", ";
     }
-    code << " };\n\n";
+    code << " };\n";
 
     code << "static const std::vector<int> nodeRight { ";
     for (auto node : nodes) {
         code << node.right << ", ";
     }
-    code << " };\n\n";
+    code << " };\n";
 
-    code << "static const std::vector<int> nodeSuggestedPolicy { ";
+    code << "static const std::vector<int> nodeRecommendedPolicy { ";
     for (auto node : nodes) {
         code << node.classIdx << ", ";
     }
-    code << " };\n\n";
+    code << " };\n";
 
     code << "static const std::vector<int> splitOnVariableIdx { ";
     for (auto split : splits) {
         code << split.varIdx << ", ";
     }
-    code << " };\n\n";
+    code << " };\n";
 
     code << "static const std::vector<float> splitAtThreshold { ";
     for (auto split : splits) {
         code << split.c << ", ";
     }
-    code << " };\n\n";
+    code << " };\n";
 
     code << "static const std::vector<bool> splitDirectionReversed { ";
     for (auto split : splits) {
         code << (int) split.inversed << ", ";
     }
-    code << " };\n\n";
+    code << " };\n";
 
-    code << "static std::vector<int> votes(" << numPolicies << ");\n";
+    code << "static std::vector<int> votes(" << numPolicies << ");\n\n";
     code << \
 R"(
     // Clear out votes from previous prediction:
@@ -260,38 +261,36 @@ R"(
 
             float val = immediateFeatureValues[split_on_var_idx];
 
-            //NOTE[cdw]: In OpenCV...
-            //               if( vtype[va] == VAR_ORDERED ) ...
-            //           the below line is the only logic, it does not
-            //           check 'split_is_gt' ... that only comes up when
-            //               float val = psample[ci*sstep];
+            //NOTE[cdw]: In OpenCV for predict():
             //               if (val == MISSED_VAL ) {
-            //                  nidx = (split_is_gt ? node_child_right : node_child_left);
+            //                  nidx = (node.defaultDir ? node_child_right : node_child_left);
             //                  continue;
             //               }
             //               val = missingSubstPtr[vi];
             //               ...
             //
-            //    TODO[cdw]:
-            //           SO, I think we're missing a step here, where
-            //           somehow we get to a point in the tree and
-            //           nothing is true, and we've not yet made a
-            //           recommendation, and we need to bump right instead
-            //           of left, or something like that. Not sure.
+            //    NOTE[cdw]:
+            //      This is not the same behavior of the writeSplit() export
+            //      function, which looks at the value we've captured above
+            //      in 'split_is_gt' to determin the <= VS. > operator for
+            //      tree traversal at that decision point. It appears that
+            //      during normal evaluation of a dtree, that comparison
+            //      inversion never happens. But... noting here just in case.
             //
             //
-            nidx = (val <= split_at_threshold ? node_child_left : node_child_right);
-        }
 
-        node_suggested_pol = nodeSuggestPolicy[prev];
-        votes[node_suggested_pol]++;
+            nidx = (val <= split_at_threshold ? node_child_left : node_child_right);
 
         } //end: parsing this tree
+
+        node_recommended_pol = nodeSuggestPolicy[prev];
+        votes[node_recommended_pol]++;
+
     } //end: parsing all trees in forest
 
     // Analyze the votes and return the winner!
-    int best_idx = node_suggested_pol;
-    if( roots.size() > 1 )
+    int best_idx = node_recommended_pol;
+    if( rootNodes.size() > 1 )
     {
         best_idx = 0;
         for(int i = 1; i < )" << numPolicies << R"(; i++ ) {
@@ -345,16 +344,11 @@ DecisionTree::generateSource(const std::string &language, const std::string &reg
     }
 
     std::stringstream code;
-    const std::vector<int>&  roots = dtree->getRoots();
-    const std::vector<cv::ml::DTrees::Node>& nodes = dtree->getNodes();
 
+    //NOTE[cdw]: For debugging, if needed.
+    //const std::vector<int>&  roots = dtree->getRoots();
+    //const std::vector<cv::ml::DTrees::Node>& nodes = dtree->getNodes();
 
-    // OK, here we go...
-    std::cout << "roots.size() == " << roots.size() << "\n";
-    for (auto rootIdx : roots) {
-        std::cout << "roots[" << rootIdx << "] == " \
-                  << roots[rootIdx] << "\n";
-    }
 
     generateCPPSourceHeader(code, regionName);
     generateCPPSourceRandomForest(code, policy_count);

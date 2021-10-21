@@ -43,6 +43,7 @@
 #include <impl/Kokkos_Profiling_Interface.hpp>
 #include <iostream>
 #include <map>
+#include <unordered_map>
 #include <queue>
 #include <set>
 #include <string>
@@ -220,6 +221,9 @@ struct variableSet {
 
 int choices[max_choices];
 
+static int debug_count = 0;
+static std::unordered_map<int, int> debug_rec_hist;
+
 namespace std {
 template <> struct less<variableSet> {
   bool operator() (const variableSet &l, const variableSet &r) const {
@@ -344,8 +348,12 @@ extern "C" void kokkosp_finalize_library() {
 
     std::string code = region->model->generateSource("C++", file_name);
 
-    std::cout << "Code length: " << code.size() << " bytes.\n";
 
+    std::cout << "Post-Training Recommendations:\n";
+    for(auto kv: debug_rec_hist) {
+        std::cout << "[ " << kv.first << ", " << kv.second << " ]\n";
+    }
+    std::cout << "----------\n";
 
     // TODO: Ponder how we want kokkos connector to automatically find/use
     //       these per-region modules instead of activating Apollo.
@@ -484,6 +492,8 @@ bool file_exists(std::string path) {
   struct stat buffer;
   return (stat(path.c_str(), &buffer) == 0);
 }
+
+
 extern "C" void kokkosp_request_values(
     size_t contextId, size_t numContextVariables,
     Kokkos::Tools::Experimental::VariableValue *contextValues,
@@ -543,7 +553,14 @@ extern "C" void kokkosp_request_values(
     }
   }
 
+
+
   int policyChoice = region->getPolicyIndex(context);
+
+  if (++debug_count > flush_interval) {
+    debug_rec_hist[policyChoice] += 1;
+  }
+
 
   for (int x = 0; x < numTuningVariables; ++x) {
     auto *metadata = reinterpret_cast<VariableDatabaseData *>(
@@ -568,11 +585,9 @@ extern "C" void kokkosp_end_context(size_t contextId) {
   region->end(context);
   tuned_contexts.erase(contextId);
   static int encounter;
+  static int flush_count_as_kokkos_step;
   if ((++encounter % flush_interval) == 0) {
-    // TODO[cdw]: Ideally this would happen at some major
-    //            application step boundary, not at the end
-    //            of a parallel region?
-    apollo->flushAllRegionMeasurements(0);
+    apollo->flushAllRegionMeasurements(++flush_count_as_kokkos_step);
     num_unconverged_regions = 0; // TODO: better
   }
 }

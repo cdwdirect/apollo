@@ -32,6 +32,8 @@ class DecisionTree : public PolicyModel {
 
     private:
         Ptr<RTrees> dtree;
+        Mat fmat;
+        Mat rmat;
 
         void generateCPPSourceHeader(std::stringstream& code, const std::string &regionName);
         void generateCPPSourceRandomForest(std::stringstream& code, int numPolicies);
